@@ -61,14 +61,23 @@ public:
 
 	bool forceAtLeastOneAction;
 
-	// index: timestep -> variable -> value
-	std::vector<std::vector<std::vector<int>>> fact_variables;
+
+	// TODO fill and use this map
+	std::map<int,std::map<int,int>> operator_precondition_map;	
+
+	// static knowledge about the problem:
+	// whether a derived predicate is statically true
+	std::unordered_set<int> statically_true_derived_predicates;
+
+
+	// dynamic variables generated while creating the formula
 	// index: timestep -> operator 
 	std::vector<std::vector<int>> operator_variables;
+
+	// index: timestep -> variable -> value
+	std::vector<std::vector<std::vector<int>>> fact_variables;
 	int get_fact_var(int time, FactProxy fact);
 	int get_fact_var(int time, FactPair fact);
-
-	std::unordered_set<int> statically_true_derived_predicates;
 
 	// index: timestep -> variable
 	std::vector<std::vector<std::vector<int>>> axiom_variables;
@@ -76,6 +85,13 @@ public:
 	int get_axiom_var(int time, int layer, FactPair fact);
 	int get_last_axiom_var(int time, FactProxy fact);
 	int get_last_axiom_var(int time, FactPair fact);
+
+	// index: timestep -> variable -> value -> list of causes
+	std::vector<std::vector<std::vector<std::vector<int>>>> achieverVars;
+	std::vector<std::vector<std::vector<std::vector<int>>>> deleterVars;
+
+
+
 
 	//// variable -> value -> list of actions
 	//std::vector<std::vector<std::vector<int>>> achiever;
@@ -87,9 +103,15 @@ public:
 	std::vector<std::vector<int>> neg_derived_implication;
 	std::map<FactPair, std::vector<int>> derived_entry_edges;
 	void axiom_dfs(int var, std::set<int> & posReachable, std::set<int> & negReachable, bool mode);
+
+
+
 	// axiom SCCs
 	std::vector<AxiomSCC> axiomSCCsInTopOrder;
+	std::map<int,int> numberOfAxiomLayerVariablesPerDerived;
 	std::vector<std::vector<OperatorProxy>> achievers_per_derived;
+
+	void axiom_encoding_for_timestep(void* solver, sat_capsule & capsule, int time);
 	
 	void printVariableTruth(void* solver, sat_capsule & capsule);
 
@@ -135,6 +157,7 @@ public:
 		    const std::vector<std::pair<int, int>>& E, const std::vector<std::pair<int, int>>& R, int time);
 
 	
+	int curClauseNumber;
 	std::map<std::string,int> clauseCounter;
 	std::map<std::string,int> variableCounter;
 	
@@ -143,6 +166,15 @@ public:
 	void set_up_single_step();
 
 	std::pair<std::vector<FactPair>, std::vector<FactPair> > compute_needs_and_deletes_for_operator(int op);
+
+	
+	void generate_operator_variables(sat_capsule & capsule, int time);
+	void generate_fact_variables(sat_capsule & capsule, int time);
+	void generate_derived_predicate_variables(sat_capsule & capsule, int time);
+	void encode_direct_preconditions_and_effects_of_action(void* solver, sat_capsule & capsule, int time,
+		std::map<FactPair, std::map<std::set<int>,std::vector<int>>> conditionBuffer,
+		std::map<FactPair, std::map<std::set<int>, int>> conditionVariable
+			);
 
 protected:
     virtual void initialize() override;
