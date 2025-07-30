@@ -678,93 +678,92 @@ void SATSearch::set_up_single_step() {
 }
 
 
-void SATSearch::set_up_exists_step() {
-	
-	/////////// Exists step encoding
-	// compute the disabling graph
-	map<FactPair,set<int>> needingActions;
-	map<FactPair,set<int>> deletingActions;
-	for(size_t op = 0; op < task_proxy.get_operators().size(); op ++){
-		if (op % 1000 == 0)
-			log << "Disabling Graph Operator " << op << " of " << task_proxy.get_operators().size() << endl;
 
-		OperatorProxy opProxy = task_proxy.get_operators()[op];
-		PreconditionsProxy precs = opProxy.get_preconditions();
-		map<int,int> preMap;
-		vector<FactPair> fullPreConditions;
-		for (size_t pre = 0; pre < precs.size(); pre++){
-			FactProxy fact = precs[pre];
-			needingActions[fact.get_pair()].insert(op);
-			preMap[fact.get_variable().get_id()] = fact.get_value();
-			fullPreConditions.push_back(fact.get_pair());
+// Function computes for a given operator, all facts that it
+// 1) might need. These are preconditions and all conditions of conditional effects
+// 2) it might delete. This includes derived predicates that it might delete
+pair<vector<FactPair>, vector<FactPair> > SATSearch::compute_needs_and_deletes_for_operator(int op){
+	vector<FactPair> needs;
+	vector<FactPair> deletes;
+	OperatorProxy opProxy = task_proxy.get_operators()[op];
+	PreconditionsProxy precs = opProxy.get_preconditions();
+
+	// preconditions as a map. Maps variable to its value required by a precondition.
+	// Only necessary for correct evaluation of axioms
+	map<int,int> preMap;
+	vector<FactPair> fullPreConditions;
+	for (size_t pre = 0; pre < precs.size(); pre++){
+		FactProxy fact = precs[pre];
+		needs.push_back(fact.get_pair());
+		preMap[fact.get_variable().get_id()] = fact.get_value();
+		fullPreConditions.push_back(fact.get_pair());
+	}
+
+	// loop over effects
+	EffectsProxy effs = opProxy.get_effects();
+	for (size_t eff = 0; eff < effs.size(); eff++){
+		EffectProxy thisEff = effs[eff];
+		// gather the conditions of the conditional effect 
+		EffectConditionsProxy cond = thisEff.get_conditions();
+		vector<FactPair> conditions;
+		vector<FactPair> fullConditions = fullPreConditions;
+		for (size_t i = 0; i < cond.size(); i++){
+			FactProxy condition = cond[i];
+			// conditions of conditional effects might be needed. For disabling graph, we need to be cautious
+			needs.push_back(condition.get_pair());
+			conditions.push_back(condition.get_pair());
+			fullConditions.push_back(condition.get_pair());
+		}
+		
+
+		// axioms only
+		// setting a fact to true can cause a DP to become true, which in turn means we make a precondition that it has to be false
+		for (int & start : derived_entry_edges[thisEff.get_fact().get_pair()]){
+			set<int> posReachable, negReachable;
+			axiom_dfs(start,posReachable, negReachable, true); // fact has become true
+			for (const int & reach : posReachable){
+				deletes.push_back(FactPair(reach,0));
+			}
+			for (const int & reach : negReachable){
+				deletes.push_back(FactPair(reach,1));
+			}
 		}
 
-		EffectsProxy effs = opProxy.get_effects();
-		for (size_t eff = 0; eff < effs.size(); eff++){
-			EffectProxy thisEff = effs[eff];
-			// gather the conditions of the conditional effect 
-			EffectConditionsProxy cond = thisEff.get_conditions();
-			vector<FactPair> conditions;
-			vector<FactPair> fullConditions = fullPreConditions;
-			for (size_t i = 0; i < cond.size(); i++){
-				FactProxy condition = cond[i];
-				needingActions[condition.get_pair()].insert(op);
-				conditions.push_back(condition.get_pair());
-				fullConditions.push_back(condition.get_pair());
-			}
-			
-			addingActions[thisEff.get_fact().get_pair()].push_back({op,fullConditions});
 
-			// setting a fact to true can cause a DP to become true, which in turn means we make a precondition that it has to be false false
-			for (int & start : derived_entry_edges[thisEff.get_fact().get_pair()]){
+
+		// implicit deleting effects, i.e. delete any value of the variable that is set
+		for (int val = 0; val < thisEff.get_fact().get_variable().get_domain_size(); val++){
+			// an effect var=v implicitly deletes all other facts var=v' with v != v'
+			if (val == thisEff.get_fact().get_value()) continue;
+			// -- unless the variable var must have had a different value than v' before the action was executed.
+			// TODO: one can also check the condition of the conditional effect here!
+			// currently we check only the actual preconditions of the action. Can help for cases where we have an effect
+			// v=1 -> v=2
+			if (preMap.count(thisEff.get_fact().get_variable().get_id()) &&
+				preMap[thisEff.get_fact().get_variable().get_id()] != val)
+				continue;
+
+			FactPair deletedFact(thisEff.get_fact().get_variable().get_id(),val);
+			deletes.push_back(deletedFact);
+
+			// treat operators that have an effect that can make a derived fact false as if they were deletes of that fact
+			for (int & start : derived_entry_edges[deletedFact]){
 				set<int> posReachable, negReachable;
-				axiom_dfs(start,posReachable, negReachable, true); // fact has become true
-				// if derived is maintained, it cannot be deleted.
-				//if (maintainedFactsByOperator[op].count(FactPair(reach,1)) &&
-				//	maintainedFactsByOperator[op].count(FactPair(reach,0))
-				//		) continue;
-				// if we make the entry point true, any of the connected axioms might become true, so we might delete any negative precondition on it
-				for (const int & reach : posReachable){
-					deletingActions[FactPair(reach,0)].insert(op);
-					addingActions[FactPair(reach,1)].push_back({op,fullConditions});
-				}
-				for (const int & reach : negReachable){
-					deletingActions[FactPair(reach,1)].insert(op);
-					addingActions[FactPair(reach,0)].push_back({op,fullConditions});
-				}
-			}
-
-
-
-			// implicit deleting effects, i.e. delete any value of the variable that is set
-			for (int val = 0; val < thisEff.get_fact().get_variable().get_domain_size(); val++){
-				if (val == thisEff.get_fact().get_value()) continue;
-				if (preMap.count(thisEff.get_fact().get_variable().get_id()) &&
-					preMap[thisEff.get_fact().get_variable().get_id()] != val)
-					continue;
-		
-				FactPair deletedFact(thisEff.get_fact().get_variable().get_id(),val);
-				deletingActions[deletedFact].insert(op);
-
-				// treat operators that have an effect that can make a derived fact false as if they were deletes of that fact
-				for (int & start : derived_entry_edges[deletedFact]){
-					set<int> posReachable, negReachable;
-					axiom_dfs(start,posReachable, negReachable, false); // fact has become true
-					// if derived is maintained, it cannot be deleted.
-					//if (maintainedFactsByOperator[op].count(FactPair(reach,1)) &&
-					//	maintainedFactsByOperator[op].count(FactPair(reach,0))
-					//		) continue;
-					// if we make the entry point true, any of the connected axioms might become true, so we might delete any negative precondition on it
-					for (const int & reach : posReachable)
-						deletingActions[FactPair(reach,0)].insert(op);
-					for (const int & reach : negReachable)
-						deletingActions[FactPair(reach,1)].insert(op);
-				}
+				axiom_dfs(start,posReachable, negReachable, false); // fact has become true
+				// if we make the entry point true, any of the connected axioms might become true,
+				// so we might delete any negative precondition on it
+				for (const int & reach : posReachable)
+					deletes.push_back(FactPair(reach,0));
+				for (const int & reach : negReachable)
+					deletes.push_back(FactPair(reach,1));
 			}
 		}
 	}
+	return make_pair(needs,deletes);
+}
 
 
+void SATSearch::set_up_efficient_conflict_testing(){
 	// prepare data structures needed for compatibility checking
 	// TODO: copied from pruning/stubborn_sets.cc maybe create common super class
     sorted_op_preconditions = utils::map_vector<vector<FactPair>>(
@@ -786,21 +785,43 @@ void SATSearch::set_up_exists_step() {
                     unconditionalEffects,
                     [](const EffectProxy &eff) {return eff.get_fact().get_pair();}));
         });
+}
 
 
-	// actually compute the edges of the graph
+
+void SATSearch::set_up_exists_step() {
+	/////////// Exists step encoding
+	// compute the disabling graph
+	map<FactPair,set<int>> needingOperators;
+	map<FactPair,set<int>> deletingOperators;
+	for(size_t op = 0; op < task_proxy.get_operators().size(); op ++){
+		if (op % 1000 == 0)
+			log << "Disabling Graph Operator " << op << " of " << task_proxy.get_operators().size() << endl;
+		auto [needs, deletes] = compute_needs_and_deletes_for_operator(op);
+		for (const FactPair & f : needs) needingOperators[f].insert(op);
+		for (const FactPair & f : deletes) deletingOperators[f].insert(op);
+	}
+
+	// create data structure that allow for efficient testing whether action have non-conflicting preconditions and effects
+	set_up_efficient_conflict_testing();
+
+	// data structure for the disabling graph. This is only temporary. The actual edges are not needed later on an can be discarded
+	// once the global action ordering is determined.
 	vector<set<int>> disabling_graph(task_proxy.get_operators().size());
 	int number_of_edges_in_disabling_graph = 0;
 	int number_refuted_edges_in_disabling_graph = 0;
 	unordered_set<int> sequentialOperators;
 	set<FactPair> thresholdFacts;
-	for (auto [fact, deleters] : deletingActions){
-		if (needingActions[fact].size() == 0) {
+	
+	
+	// actually compute the edges of the graph
+	for (auto [fact, deleters] : deletingOperators){
+		if (needingOperators[fact].size() == 0) {
 			thresholdFacts.insert(fact);
 			continue;
 		}
-		int checkSize = deleters.size() * needingActions[fact].size();
-		//log << "DG " << fact << " deleter " << deleters.size() << " needers " << needingActions[fact].size() << " checks " << checkSize << endl;
+		int checkSize = deleters.size() * needingOperators[fact].size();
+		//log << "DG " << fact << " deleter " << deleters.size() << " needers " << needingOperators[fact].size() << " checks " << checkSize << endl;
 		if (checkSize > disablingThreshold){
 			thresholdFacts.insert(fact);
 			unordered_set<int> thisSequentialOperators;
@@ -808,7 +829,7 @@ void SATSearch::set_up_exists_step() {
 				sequentialOperators.insert(deleter);
 				thisSequentialOperators.insert(deleter);
 			}
-			for (int needer : needingActions[fact]){
+			for (int needer : needingOperators[fact]){
 				sequentialOperators.insert(needer);
 				thisSequentialOperators.insert(needer);
 			}
@@ -822,7 +843,7 @@ void SATSearch::set_up_exists_step() {
 			continue;
 		}
 		for (int deleter : deleters){
-			for (int needer : needingActions[fact]){
+			for (int needer : needingOperators[fact]){
 				if (deleter == needer) continue;
 				// if preconditions are incompatible, action's don't disable each other
 				if (!can_be_executed_in_same_state(deleter,needer)) {
@@ -880,7 +901,7 @@ void SATSearch::set_up_exists_step() {
 		}
 	}
 
-	for (auto & [factPair, _ignore] : deletingActions){
+	for (auto & [factPair, _ignore] : deletingOperators){
 		if (thresholdFacts.count(factPair)) continue; // don't need to generate anything for these
 		erasingList[factPair].resize(disabling_sccs.size());
 		requiringList[factPair].resize(disabling_sccs.size());
@@ -889,11 +910,11 @@ void SATSearch::set_up_exists_step() {
 			for (size_t sccOp = 0; sccOp < disabling_sccs[scc].size(); sccOp++){
 				int op = disabling_sccs[scc][sccOp];
 				// check if this operator has this fact as a precondition
-				if (needingActions[factPair].count(op))
+				if (needingOperators[factPair].count(op))
 					requiringList[factPair][scc].push_back({op, sccOp});
 
 				// check if this operator has this fact as an effect
-				if (deletingActions[factPair].count(op))
+				if (deletingOperators[factPair].count(op))
 					erasingList[factPair][scc].push_back({op, sccOp});
 			}
 		}

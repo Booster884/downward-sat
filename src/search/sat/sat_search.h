@@ -66,13 +66,16 @@ public:
 	// index: timestep -> operator 
 	std::vector<std::vector<int>> operator_variables;
 	int get_fact_var(int time, FactProxy fact);
+	int get_fact_var(int time, FactPair fact);
 
 	std::unordered_set<int> statically_true_derived_predicates;
 
 	// index: timestep -> variable
 	std::vector<std::vector<std::vector<int>>> axiom_variables;
 	int get_axiom_var(int time, int layer, FactProxy fact);
+	int get_axiom_var(int time, int layer, FactPair fact);
 	int get_last_axiom_var(int time, FactProxy fact);
+	int get_last_axiom_var(int time, FactPair fact);
 
 	//// variable -> value -> list of actions
 	//std::vector<std::vector<std::vector<int>>> achiever;
@@ -110,11 +113,17 @@ public:
 	std::set<FactPair> compute_known_prior_state(int op, FactPair assumedFact);
 
 
-	// exists step
+	// efficient access data structure, needed for testing whether two action have compatible preconditions and effect
+	// these are the tests can_be_executed_in_same_state and have_actions_unconflicting_effects
+	// static information about the planning problem.
     std::vector<std::vector<FactPair>> sorted_op_preconditions;
     std::vector<std::vector<FactPair>> sorted_op_effects;
+	void set_up_efficient_conflict_testing();
 	bool can_be_executed_in_same_state(int op1_no, int op2_no);
 	bool have_actions_unconflicting_effects(int op1_no, int op2_no);
+
+
+	// exists step
 	std::vector<int> global_action_ordering;
 	// generate Erasing and Requiring list
 	// per fact, per SCC, gives a list of all E/R as a pair: <operator,position_in_scc>
@@ -133,11 +142,7 @@ public:
 	void set_up_exists_step();
 	void set_up_single_step();
 
-	// Kissat interface
-	std::map<FactPair,std::vector<std::pair<int,std::vector<FactPair>>>> addingActions;
-	int get_last_axiom_var(int time, FactPair fact);
-	int get_fact_var(int time, FactPair fact);
-
+	std::pair<std::vector<FactPair>, std::vector<FactPair> > compute_needs_and_deletes_for_operator(int op);
 
 protected:
     virtual void initialize() override;
