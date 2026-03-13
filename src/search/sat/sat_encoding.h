@@ -51,18 +51,6 @@ public:
 	virtual void initialize(const TaskProxy _task_proxy, utils::LogProxy _log) = 0;
 };
 
-
-
-static class SATEncodingFactoryCategoryPlugin : public plugins::TypedCategoryPlugin<SATEncodingFactory> {
-	public:
-	    SATEncodingFactoryCategoryPlugin () : TypedCategoryPlugin("SATEncodingFactory") {
-	        document_synopsis(
-	            "This page describes available SAT encodings.");
-	    }
-	}
-	_category_plugin;
-
-
-};
+}
 
 #endif

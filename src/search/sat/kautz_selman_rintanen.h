@@ -81,7 +81,6 @@ private:
 	int encoding;
 	int	disablingThreshold;
 	bool aboveThresholdGroupJoining;
-	std::shared_ptr<KautzSelmanRintanenEncodingFactory> me;
 
 	void set_up_axioms();
 	void set_up_exists_step();
@@ -97,9 +96,7 @@ public:
 		encoding(_encoding),
 		disablingThreshold(_disablingThreshold),
 		aboveThresholdGroupJoining(_aboveThresholdGroupJoining)
-		{
-			me = shared_from_this();
-		};
+		{ };
 			
 	virtual std::unique_ptr<SATEncoding> createEncodingInstance(std::shared_ptr<sat_capsule> capsule) override;
 	virtual void initialize(const TaskProxy _task_proxy, utils::LogProxy _log) override;
@@ -107,7 +104,7 @@ public:
 
 class KautzSelmanRintanenEncoding : public SATEncoding {
 public:
-	std::shared_ptr<KautzSelmanRintanenEncodingFactory> factory;
+	KautzSelmanRintanenEncodingFactory* factory;
 	
 	// debugging / output configuration
 	bool logInference = false;
@@ -167,7 +164,7 @@ public:
     mutable utils::LogProxy log;
 	
 	KautzSelmanRintanenEncoding(
-		std::shared_ptr<KautzSelmanRintanenEncodingFactory> _factory,
+		KautzSelmanRintanenEncodingFactory* _factory,
 		int _encoding,
 		int	_disablingThreshold,
 		bool _aboveThresholdGroupJoining,

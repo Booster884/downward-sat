@@ -93,7 +93,7 @@ namespace sat_search {
 	    }
 	};
 	
-	static plugins::FeaturePlugin<OneByOneStrategyFeature> _plugin_by_iteration;
+	static plugins::FeaturePlugin<ByIterationStrategyFeature> _plugin_by_iteration;
 
 	class ConstantStrategyFeature
 	    : public plugins::TypedFeature<LengthStrategy, LengthStrategyConstant> {
@@ -116,5 +116,5 @@ namespace sat_search {
 	    }
 	};
 	
-	static plugins::FeaturePlugin<OneByOneStrategyFeature> _plugin_constant;
+	static plugins::FeaturePlugin<ConstantStrategyFeature> _plugin_constant;
 }

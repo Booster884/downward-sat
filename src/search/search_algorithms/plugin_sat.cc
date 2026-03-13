@@ -33,7 +33,7 @@ public:
 			"if possible try to put the SAT solver into quiet mode (less output to parse for experiments)",
 			"false");
     	
-		//add_search_algorithm_options_to_feature(*this, "sat");
+		add_search_algorithm_options_to_feature(*this, "sat");
 	}
 
     virtual shared_ptr<sat_search::SATSearch>

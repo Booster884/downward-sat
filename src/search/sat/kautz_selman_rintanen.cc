@@ -44,14 +44,14 @@ void KautzSelmanRintanenEncodingFactory::initialize(const TaskProxy _task_proxy,
 	
 	
 std::unique_ptr<SATEncoding> KautzSelmanRintanenEncodingFactory::createEncodingInstance(std::shared_ptr<sat_capsule> capsule){
-	return make_unique<KautzSelmanRintanenEncoding>(me,encoding,disablingThreshold,aboveThresholdGroupJoining,capsule,*task_proxy,forceAtLeastOneAction,*log);
+	return make_unique<KautzSelmanRintanenEncoding>(this,encoding,disablingThreshold,aboveThresholdGroupJoining,capsule,*task_proxy,forceAtLeastOneAction,*log);
 
 };
 
 	
 	
 KautzSelmanRintanenEncoding::KautzSelmanRintanenEncoding(
-	std::shared_ptr<KautzSelmanRintanenEncodingFactory> _factory,
+	KautzSelmanRintanenEncodingFactory* _factory,
 	int _encoding,
 	int	_disablingThreshold,
 	bool _aboveThresholdGroupJoining,

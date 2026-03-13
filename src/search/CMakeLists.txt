@@ -664,6 +664,7 @@ create_fast_downward_library(
 	HELP "SAT search"
     SOURCES
 		sat/plugin_kautzselmanrintanen
+		sat/plugin_sat_encoding
 		search_algorithms/plugin_sat
     DEPENDS
         sat_search
