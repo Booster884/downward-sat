@@ -3,7 +3,6 @@
 
 #include "sat_encoder.h"
 #include "sat_encoding.h"
-#include "../utils/logging.h"
 
 #include <memory>
 #include <vector>
@@ -82,7 +81,6 @@ private:
 	int encoding;
 	int	disablingThreshold;
 	bool aboveThresholdGroupJoining;
-    utils::LogProxy log;
 	std::shared_ptr<KautzSelmanRintanenEncodingFactory> me;
 
 	void set_up_axioms();
@@ -94,18 +92,17 @@ public:
 			int _encoding,
 			int	_disablingThreshold,
 			bool _aboveThresholdGroupJoining,
-			const TaskProxy _task_proxy, bool forceAtLeastOneAction,
-    		utils::LogProxy _log):
-		SATEncodingFactory(forceAtLeastOneAction,_task_proxy),
+			bool forceAtLeastOneAction):
+		SATEncodingFactory(forceAtLeastOneAction),
 		encoding(_encoding),
 		disablingThreshold(_disablingThreshold),
-		aboveThresholdGroupJoining(_aboveThresholdGroupJoining),
-		log(_log) {
+		aboveThresholdGroupJoining(_aboveThresholdGroupJoining)
+		{
 			me = shared_from_this();
 		};
 			
 	virtual std::unique_ptr<SATEncoding> createEncodingInstance(std::shared_ptr<sat_capsule> capsule) override;
-	virtual void initialize() override;
+	virtual void initialize(const TaskProxy _task_proxy, utils::LogProxy _log) override;
 };
 
 class KautzSelmanRintanenEncoding : public SATEncoding {

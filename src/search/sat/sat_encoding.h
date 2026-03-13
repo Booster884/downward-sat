@@ -3,6 +3,8 @@
 
 #include "../task_proxy.h"
 #include "../plan_manager.h"
+#include "../utils/logging.h"
+#include "../plugins/plugin.h"
 
 //#include "sat_encoder.h"
 //#include "../task_representation/fts_task.h"
@@ -39,14 +41,27 @@ public:
 // abstract interface for initialisation of SAT encoding
 class SATEncodingFactory {
 protected:
-	TaskProxy task_proxy;
+	std::shared_ptr<TaskProxy> task_proxy;
+    std::shared_ptr<utils::LogProxy> log;
 	const bool forceAtLeastOneAction;
 public:
-	SATEncodingFactory(bool _forceAtLeastOneAction, const TaskProxy _task_proxy) : task_proxy(_task_proxy), forceAtLeastOneAction(_forceAtLeastOneAction) {};
+	SATEncodingFactory(bool _forceAtLeastOneAction) : forceAtLeastOneAction(_forceAtLeastOneAction) {};
 	virtual ~SATEncodingFactory() = default;
 	virtual std::unique_ptr<SATEncoding> createEncodingInstance(std::shared_ptr<sat_capsule> capsule) = 0;
-	virtual void initialize() = 0;
+	virtual void initialize(const TaskProxy _task_proxy, utils::LogProxy _log) = 0;
 };
+
+
+
+static class SATEncodingFactoryCategoryPlugin : public plugins::TypedCategoryPlugin<SATEncodingFactory> {
+	public:
+	    SATEncodingFactoryCategoryPlugin () : TypedCategoryPlugin("SATEncodingFactory") {
+	        document_synopsis(
+	            "This page describes available SAT encodings.");
+	    }
+	}
+	_category_plugin;
+
 
 };
 

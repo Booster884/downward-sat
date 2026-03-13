@@ -26,7 +26,10 @@ using namespace std;
 namespace sat_search {
 
 	
-void KautzSelmanRintanenEncodingFactory::initialize() {
+void KautzSelmanRintanenEncodingFactory::initialize(const TaskProxy _task_proxy, utils::LogProxy _log) {
+
+	task_proxy = std::make_shared<TaskProxy>(_task_proxy);
+	log = std::make_shared<utils::LogProxy>(_log);
 	// set up data structures for derived predicates and axioms -- won't do anything if none of them exist.
 	set_up_axioms();
 
@@ -36,12 +39,12 @@ void KautzSelmanRintanenEncodingFactory::initialize() {
 	else
 		set_up_single_step();
 
-	assert(global_action_ordering.size() == task_proxy.get_operators().size());
+	assert(global_action_ordering.size() == task_proxy->get_operators().size());
 }
 	
 	
 std::unique_ptr<SATEncoding> KautzSelmanRintanenEncodingFactory::createEncodingInstance(std::shared_ptr<sat_capsule> capsule){
-	return make_unique<KautzSelmanRintanenEncoding>(me,encoding,disablingThreshold,aboveThresholdGroupJoining,capsule,task_proxy,forceAtLeastOneAction,log);
+	return make_unique<KautzSelmanRintanenEncoding>(me,encoding,disablingThreshold,aboveThresholdGroupJoining,capsule,*task_proxy,forceAtLeastOneAction,*log);
 
 };
 
@@ -138,16 +141,16 @@ void KautzSelmanRintanenEncodingFactory::axiom_dfs(int var, set<int> & posReacha
 
 void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 	derived_implication.clear();
-	derived_implication.resize(task_proxy.get_variables().size());
+	derived_implication.resize(task_proxy->get_variables().size());
 	pos_derived_implication.clear();
-	pos_derived_implication.resize(task_proxy.get_variables().size());
+	pos_derived_implication.resize(task_proxy->get_variables().size());
 	neg_derived_implication.clear();
-	neg_derived_implication.resize(task_proxy.get_variables().size());
-	achievers_per_derived.resize(task_proxy.get_variables().size());
+	neg_derived_implication.resize(task_proxy->get_variables().size());
+	achievers_per_derived.resize(task_proxy->get_variables().size());
 	derived_entry_edges.clear();
 
 	// find statically true DPs
-	AxiomsProxy axioms = task_proxy.get_axioms();
+	AxiomsProxy axioms = task_proxy->get_axioms();
 	bool newTrueFound = true;
 	while (newTrueFound){
 		newTrueFound = false;
@@ -192,13 +195,13 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 			if (inApplicable) continue;
 
 			if (number_of_true_conditions == 0){
-				DEBUG(log << "Found statically true derived predicate: " << task_proxy.get_variables()[eff_var].get_name() << endl);
+				DEBUG(*log << "Found statically true derived predicate: " << task_proxy->get_variables()[eff_var].get_name() << endl);
 				statically_true_derived_predicates.insert(eff_var);
 				newTrueFound = true;
 			}
 		}
 	}
-	log << "Found statically true derived predicates: " << statically_true_derived_predicates.size() << endl;
+	*log << "Found statically true derived predicates: " << statically_true_derived_predicates.size() << endl;
 
 	// building the derived predicate dependency graph
 	for (size_t ax = 0; ax < axioms.size(); ax++){
@@ -255,12 +258,12 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 	vector<vector<int>> derived_sccs;
 	int numberDerivedPredicates = 0;
 	for (vector<int> s : initial_derived_sccs){
-		if (s.size() == 1 && !task_proxy.get_variables()[s[0]].is_derived()) continue;
+		if (s.size() == 1 && !task_proxy->get_variables()[s[0]].is_derived()) continue;
 		derived_sccs.push_back(s);
 		numberDerivedPredicates += s.size();
 		//log << "SCC of size " << s.size() << endl;
 	}
-	log << "Number of SCCs " << derived_sccs.size() - statically_true_derived_predicates.size() << endl;
+	*log << "Number of SCCs " << derived_sccs.size() - statically_true_derived_predicates.size() << endl;
 	numberDerivedPredicates -= statically_true_derived_predicates.size();
 
 	int sizeOneSCCs = 0;
@@ -290,11 +293,11 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		// check if all internal edges are implications only
 		bool implicationOnly = true;
 		bool twoAntecedants = false;
-		FactProxy actualDependency = *task_proxy.get_variables().get_facts().begin(); //(*task,0,0);
+		FactProxy actualDependency = *task_proxy->get_variables().get_facts().begin(); //(*task,0,0);
 		bool oneActualDependency = true;
 		int varDependency = -1;
 
-		FactProxy actualDependencyInternal = *task_proxy.get_variables().get_facts().begin(); //(*task,0,0);
+		FactProxy actualDependencyInternal = *task_proxy->get_variables().get_facts().begin(); //(*task,0,0);
 		bool oneActualDependencyInternal = true;
 		int varDependencyInternal = -1;
 		set<int> dependentVariables;
@@ -317,7 +320,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 
 				int numDerived = 0;
 				bool hasActual = false;
-				FactProxy myActualDependency = *task_proxy.get_variables().get_facts().begin(); //(*task,0,0);
+				FactProxy myActualDependency = *task_proxy->get_variables().get_facts().begin(); //(*task,0,0);
 				bool myOneActualDependency = true;
 				int myVarDependency = -1;
 				
@@ -384,7 +387,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 
 		if (twoAntecedants){
-			log << "Problematic (2 antecedants) SCC of size " << s.size() << endl;
+			*log << "Problematic (2 antecedants) SCC of size " << s.size() << endl;
 			problematicSCCS++;
 			thisSCC.fullComputationRequired = true;
 			thisSCC.numberOfAxiomLayers = thisSCC.variables.size();
@@ -394,7 +397,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 
 		if (implicationOnly){
-			log << "Implication SCC of size " << s.size() << endl;
+			*log << "Implication SCC of size " << s.size() << endl;
 			impliationSCCS++;
 			thisSCC.isOfImplicationType = true;
 			axiomSCCsInTopOrder.push_back(thisSCC);
@@ -403,7 +406,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 
 		if (oneActualDependency){
-			log << "One fact dependency SCC of size " << s.size() << endl;
+			*log << "One fact dependency SCC of size " << s.size() << endl;
 			oneFactSCCS++;
 			thisSCC.isDependentOnOneVariableInternally = true;
 			thisSCC.dependingVariable = varDependencyInternal;
@@ -413,7 +416,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 
 		if (oneActualDependencyInternal){
-			log << "One fact dependency internal SCC of size " << s.size() << endl;
+			*log << "One fact dependency internal SCC of size " << s.size() << endl;
 			oneFactSCCSInternal++;
 			thisSCC.isDependentOnOneVariableInternally = true;
 			thisSCC.dependingVariable = varDependencyInternal;
@@ -423,7 +426,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 
 		if (varDependency != -2){
-			log << "One var dependency SCC of size " << s.size() << endl;
+			*log << "One var dependency SCC of size " << s.size() << endl;
 			oneVarSCCS++;
 			thisSCC.isDependentOnOneVariableInternally = true;
 			thisSCC.dependingVariable = varDependencyInternal;
@@ -433,7 +436,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 
 		if (varDependencyInternal != -2){
-			log << "One var dependency internal SCC of size " << s.size() << endl;
+			*log << "One var dependency internal SCC of size " << s.size() << endl;
 			oneVarSCCSInternal++;
 			thisSCC.isDependentOnOneVariableInternally = true;
 			thisSCC.dependingVariable = varDependencyInternal;
@@ -445,10 +448,10 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 
 		int combiSize = 1;
 		for (const int & v : dependentVariables){
-			//log << "Var " << v << " size: " << task_proxy.get_variables()[v].get_domain_size() << endl;
-			combiSize *= task_proxy.get_variables()[v].get_domain_size();
+			//log << "Var " << v << " size: " << task_proxy->get_variables()[v].get_domain_size() << endl;
+			combiSize *= task_proxy->get_variables()[v].get_domain_size();
 		}
-		log << "SCC size " << s.size() << " Dependent variables: " << dependentVariables.size() << " Combi size: " << combiSize << endl;
+		*log << "SCC size " << s.size() << " Dependent variables: " << dependentVariables.size() << " Combi size: " << combiSize << endl;
 
 		//log << "Problematic SCC of size " << s.size() << endl;
 		//log << "members:";
@@ -461,17 +464,17 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		axiomSCCsInTopOrder.push_back(thisSCC);
 		sizes["problematic-general"].push_back(s.size());
 	}
-	log << "Size 1 SCCS: " << sizeOneSCCs << endl;
-	log << "Implication SCCS: " << impliationSCCS << endl;
-	log << "OneFact SCCS: " << oneFactSCCS << endl;
-	log << "OneVar SCCS: " << oneVarSCCS << endl;
-	log << "OneFact internal SCCS: " << oneFactSCCSInternal << endl;
-	log << "OneVar internal SCCS: " << oneVarSCCSInternal << endl;
-	log << "Other SCCS: " << problematicSCCS << endl;
+	*log << "Size 1 SCCS: " << sizeOneSCCs << endl;
+	*log << "Implication SCCS: " << impliationSCCS << endl;
+	*log << "OneFact SCCS: " << oneFactSCCS << endl;
+	*log << "OneVar SCCS: " << oneVarSCCS << endl;
+	*log << "OneFact internal SCCS: " << oneFactSCCSInternal << endl;
+	*log << "OneVar internal SCCS: " << oneVarSCCSInternal << endl;
+	*log << "Other SCCS: " << problematicSCCS << endl;
 	
 	// statistics for SCCs
 	for (auto [name,ss] : sizes){
-		int minSize = task_proxy.get_variables().size(); 
+		int minSize = task_proxy->get_variables().size(); 
 		int maxSize = 0;
 		int sumSize = 0;
 		sort(ss.begin(), ss.end());
@@ -491,16 +494,16 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 
 		if (number == 0) continue;
 		
-		log << name << " number_sccs: " << number;
-		log << " minsize: " << minSize;
-		log << " maxsize: " << maxSize;
-		log << " sumsize: " << sumSize << " percent_of_all: " <<
-			fixed << setprecision(5) << double(sumSize) / numberDerivedPredicates;
-		log << " median: " << median;
-		log << " average: " << fixed << setprecision(5) << double(sumSize) / number;
-		log << endl;
+		*log << name << " number_sccs: " << number;
+		*log << " minsize: " << minSize;
+		*log << " maxsize: " << maxSize;
+		*log << " sumsize: " << sumSize << " percent_of_all: " <<
+		*	fixed << setprecision(5) << double(sumSize) / numberDerivedPredicates;
+		*log << " median: " << median;
+		*log << " average: " << fixed << setprecision(5) << double(sumSize) / number;
+		*log << endl;
 	}
-	log << "statically_true" << " number: " << statically_true_derived_predicates.size() <<
+	*log << "statically_true" << " number: " << statically_true_derived_predicates.size() <<
 	   " percent_of_all: " << fixed << setprecision(5) <<
 	  	 double(statically_true_derived_predicates.size()) / 
 		 (statically_true_derived_predicates.size() + numberDerivedPredicates) << endl;
@@ -513,7 +516,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 			varsToOffset[scc.variables[varOffset]] = varOffset;
 
 		if (scc.isOfImplicationType){
-			log << "Pre Processing Implication Type SCC" << endl;
+			*log << "Pre Processing Implication Type SCC" << endl;
 
 			// run Floyd Warshall on the implications
 			vector<vector<bool>> reach (scc.variables.size());
@@ -550,9 +553,9 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 			//}
 
 		} else if (scc.isDependentOnOneVariableInternally){
-			log << "Pre Processing One Variable Dependent SCC" << endl;
+			*log << "Pre Processing One Variable Dependent SCC" << endl;
 			
-			VariableProxy varProxy = task_proxy.get_variables()[scc.dependingVariable];
+			VariableProxy varProxy = task_proxy->get_variables()[scc.dependingVariable];
 			scc.guardedTransitiveImplications.resize(varProxy.get_domain_size());
 			scc.guardedTransitiveCauses.resize(varProxy.get_domain_size());
 
@@ -586,7 +589,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 							conds.push_back(cond[i]);
 	
 						int numDerived = 0;
-						FactProxy myActualDependency = *task_proxy.get_variables().get_facts().begin(); //(*task,0,0);
+						FactProxy myActualDependency = *task_proxy->get_variables().get_facts().begin(); //(*task,0,0);
 						int myVarDependency = -1;
 						int derivedDependency = -1;
 						for (FactProxy & fact : conds){
@@ -665,11 +668,11 @@ void KautzSelmanRintanenEncodingFactory::set_up_axioms(){
 		}
 	}
 	
-	DEBUG(log << "Axiom SCC number calculated" << endl);
+	DEBUG(*log << "Axiom SCC number calculated" << endl);
 }
 
 void KautzSelmanRintanenEncodingFactory::set_up_single_step() {
-	for (size_t op = 0; op < task_proxy.get_operators().size(); op++)
+	for (size_t op = 0; op < task_proxy->get_operators().size(); op++)
 		global_action_ordering.push_back(op);
 }
 
@@ -681,7 +684,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_single_step() {
 pair<vector<FactPair>, vector<FactPair> > KautzSelmanRintanenEncodingFactory::compute_needs_and_deletes_for_operator(int op){
 	vector<FactPair> needs;
 	vector<FactPair> deletes;
-	OperatorProxy opProxy = task_proxy.get_operators()[op];
+	OperatorProxy opProxy = task_proxy->get_operators()[op];
 	PreconditionsProxy precs = opProxy.get_preconditions();
 
 	// preconditions as a map. Maps variable to its value required by a precondition.
@@ -763,13 +766,13 @@ void KautzSelmanRintanenEncodingFactory::set_up_efficient_conflict_testing(){
 	// prepare data structures needed for compatibility checking
 	// TODO: copied from pruning/stubborn_sets.cc maybe create common super class
     sorted_op_preconditions = utils::map_vector<vector<FactPair>>(
-        task_proxy.get_operators(), [](const OperatorProxy &op) {
+        task_proxy->get_operators(), [](const OperatorProxy &op) {
             return utils::sorted<FactPair>(
                 task_properties::get_fact_pairs(op.get_preconditions()));
         });
 
     sorted_op_effects = utils::map_vector<vector<FactPair>>(
-        task_proxy.get_operators(), [](const OperatorProxy &op) {
+        task_proxy->get_operators(), [](const OperatorProxy &op) {
 			EffectsProxy effProx = op.get_effects();
 			vector<EffectProxy> unconditionalEffects;
 			for (EffectProxy eff : effProx)
@@ -790,9 +793,9 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 	// compute the disabling graph
 	map<FactPair,set<int>> needingOperators;
 	map<FactPair,set<int>> deletingOperators;
-	for(size_t op = 0; op < task_proxy.get_operators().size(); op ++){
+	for(size_t op = 0; op < task_proxy->get_operators().size(); op ++){
 		if (op % 1000 == 0)
-			log << "Disabling Graph Operator " << op << " of " << task_proxy.get_operators().size() << endl;
+			*log << "Disabling Graph Operator " << op << " of " << task_proxy->get_operators().size() << endl;
 		auto [needs, deletes] = compute_needs_and_deletes_for_operator(op);
 		for (const FactPair & f : needs) needingOperators[f].insert(op);
 		for (const FactPair & f : deletes) deletingOperators[f].insert(op);
@@ -803,7 +806,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 
 	// data structure for the disabling graph. This is only temporary. The actual edges are not needed later on an can be discarded
 	// once the global action ordering is determined.
-	vector<set<int>> disabling_graph(task_proxy.get_operators().size());
+	vector<set<int>> disabling_graph(task_proxy->get_operators().size());
 	int number_of_edges_in_disabling_graph = 0;
 	int number_refuted_edges_in_disabling_graph = 0;
 	unordered_set<int> sequentialOperators;
@@ -860,11 +863,11 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 		}
 	}
 
-	log << "Generated Disabling Graph with " << number_of_edges_in_disabling_graph << " edges." << std::endl;
+	*log << "Generated Disabling Graph with " << number_of_edges_in_disabling_graph << " edges." << std::endl;
 	double refute_quota = double(number_refuted_edges_in_disabling_graph) / (number_of_edges_in_disabling_graph + number_refuted_edges_in_disabling_graph);
-	log << "Refuted " << number_refuted_edges_in_disabling_graph << " edges. Quota: " << fixed << setprecision(5) << refute_quota << std::endl;
+	*log << "Refuted " << number_refuted_edges_in_disabling_graph << " edges. Quota: " << fixed << setprecision(5) << refute_quota << std::endl;
 
-	log << "Due to threshold, treating " << sequentialOperators.size() << " of " << task_proxy.get_operators().size() << " operators as sequential." << endl; 
+	*log << "Due to threshold, treating " << sequentialOperators.size() << " of " << task_proxy->get_operators().size() << " operators as sequential." << endl; 
 	if (aboveThresholdGroupJoining && sequentialOperators.size()){
 		vector<int> atMostOneGroup;
 		for (const int & op : sequentialOperators)
@@ -872,8 +875,8 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 	}
 
 
-	vector<vector<int>> disabling_graph_vector(task_proxy.get_operators().size());
-	for(size_t op = 0; op < task_proxy.get_operators().size(); op++){
+	vector<vector<int>> disabling_graph_vector(task_proxy->get_operators().size());
+	for(size_t op = 0; op < task_proxy->get_operators().size(); op++){
 		for (const int & op2 : disabling_graph[op]){
 			disabling_graph_vector[op].push_back(op2);
 		}
@@ -883,7 +886,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 	//graph_to_dot(disabling_graph_vector,"disabling.graph");
 
 	vector<vector<int>> disabling_sccs = sccs::compute_maximal_sccs(disabling_graph_vector);
-	log << "Disabling Graph contains " << disabling_sccs.size() << " SCCS." << std::endl;
+	*log << "Disabling Graph contains " << disabling_sccs.size() << " SCCS." << std::endl;
 	
 	// go backwards though the SCCs
 	for (int scc = disabling_sccs.size() - 1; scc >= 0; scc--){
@@ -893,7 +896,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 		//for (int i = disabling_sccs[scc].size() - 1; i >= 0; i--){
 			const int & opID = disabling_sccs[scc][i];
 			global_action_ordering.push_back(opID);
-			//log << "\t\t Operator " << opID << " " << task_proxy.get_operators()[opID].get_name() << endl;
+			//log << "\t\t Operator " << opID << " " << task_proxy->get_operators()[opID].get_name() << endl;
 		}
 	}
 
@@ -915,7 +918,7 @@ void KautzSelmanRintanenEncodingFactory::set_up_exists_step() {
 			}
 		}
 	}
-	log << "Build enabling disabling lists." << std::endl;
+	*log << "Build enabling disabling lists." << std::endl;
 }
 
 int chain_number = 0;

@@ -39,7 +39,7 @@ void SATSearch::initialize() {
 	utils::Timer sat_init_timer;
 	cout << "Initialising" << endl;
 	
-	encoding_factory->initialize();
+	encoding_factory->initialize(task_proxy, log);
 	
 	stepNumber = 0;
 	currentLength = length_strategy->get_first_length();
