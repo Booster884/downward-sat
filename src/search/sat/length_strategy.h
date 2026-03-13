@@ -1,0 +1,57 @@
+#ifndef SAT_LENGTH_STRATEGY_H
+#define SAT_LENGTH_STRATEGY_H
+#include <optional>
+
+
+namespace sat_search {
+    class LengthStrategy {
+    public:
+        virtual ~LengthStrategy() = default;
+        virtual int get_first_length() const = 0;
+        virtual std::optional<int> get_next_length(int step_number, int previous_length) const = 0;
+    };
+
+    class LengthStrategyConstant : public LengthStrategy {
+        const int plan_length;
+    public:
+        explicit LengthStrategyConstant(int _plan_length);
+        virtual ~LengthStrategyConstant() override = default;
+
+        int get_first_length() const override {
+            return plan_length;
+        }
+
+        std::optional<int> get_next_length(int , int) const override {
+            return std::nullopt;
+        }
+    };
+
+	// TODO maybe add starting value and step size here? Could be helpful for tests
+    class LengthStrategyOneByOne : public LengthStrategy {
+    public:
+        ~LengthStrategyOneByOne() override = default;
+        int get_first_length() const override {
+            return 1;
+        }
+
+        std::optional<int> get_next_length(int , int previous_length) const override {
+            return previous_length + 1;
+        }
+    };
+
+    class LengthStrategyByIteration : public LengthStrategy {
+        const int start_length;
+        const double multiplier;
+        const int maximum_iteration;
+    public:
+        LengthStrategyByIteration (int _start_length, double _multiplier, int _maximum_iteration);
+        ~LengthStrategyByIteration() override = default;
+        int get_first_length() const override {
+            return start_length;
+        }
+
+        std::optional<int> get_next_length(int step_number, int previous_length) const override;
+    };
+}
+
+#endif
