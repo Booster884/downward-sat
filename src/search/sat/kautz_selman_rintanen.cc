@@ -24,7 +24,22 @@ using namespace std;
 
 
 namespace sat_search {
+
+	
+void KautzSelmanRintanenEncodingFactory::initialize() {
+
+}
+	
+	
+std::unique_ptr<SATEncoding> KautzSelmanRintanenEncodingFactory::createEncodingInstance(std::shared_ptr<sat_capsule> capsule){
+	return make_unique<KautzSelmanRintanenEncoding>(me,encoding,disablingThreshold,aboveThresholdGroupJoining,capsule,task_proxy,forceAtLeastOneAction,log);
+
+};
+
+	
+	
 KautzSelmanRintanenEncoding::KautzSelmanRintanenEncoding(
+	std::shared_ptr<KautzSelmanRintanenEncodingFactory> _factory,
 	int _encoding,
 	int	_disablingThreshold,
 	bool _aboveThresholdGroupJoining,
@@ -33,6 +48,7 @@ KautzSelmanRintanenEncoding::KautzSelmanRintanenEncoding(
 	bool forceAtLeastOneAction,
 	utils::LogProxy _log)
 	:SATEncoding(capsule,_task_proxy,forceAtLeastOneAction),
+	factory(_factory),
 	disablingThreshold(_disablingThreshold),
 	aboveThresholdGroupJoining(_aboveThresholdGroupJoining),
 	log(_log)

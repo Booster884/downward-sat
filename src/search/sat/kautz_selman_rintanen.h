@@ -34,8 +34,38 @@ struct AxiomSCC{
 	
 };
 
+// abstract interface for initialisation of SAT encoding
+class KautzSelmanRintanenEncodingFactory : public SATEncodingFactory, std::enable_shared_from_this<KautzSelmanRintanenEncodingFactory> {
+public:
+
+	int encoding;
+	int	disablingThreshold;
+	bool aboveThresholdGroupJoining;
+    utils::LogProxy log;
+	std::shared_ptr<KautzSelmanRintanenEncodingFactory> me;
+
+	KautzSelmanRintanenEncodingFactory(
+			int _encoding,
+			int	_disablingThreshold,
+			bool _aboveThresholdGroupJoining,
+			std::shared_ptr<sat_capsule> capsule, const TaskProxy _task_proxy, bool forceAtLeastOneAction,
+    		utils::LogProxy _log):
+		SATEncodingFactory(forceAtLeastOneAction,_task_proxy),
+		encoding(_encoding),
+		disablingThreshold(_disablingThreshold),
+		aboveThresholdGroupJoining(_aboveThresholdGroupJoining),
+		log(_log) {
+			me = shared_from_this();
+		};
+			
+	virtual std::unique_ptr<SATEncoding> createEncodingInstance(std::shared_ptr<sat_capsule> capsule) override;
+	virtual void initialize() override;
+};
+
 class KautzSelmanRintanenEncoding : public SATEncoding {
 public:
+	std::shared_ptr<KautzSelmanRintanenEncodingFactory> factory;
+	
 	// debugging / output configuration
 	bool logInference = false;
 	
@@ -172,11 +202,12 @@ public:
     mutable utils::LogProxy log;
 	
 	KautzSelmanRintanenEncoding(
-			int _encoding,
-			int	_disablingThreshold,
-			bool _aboveThresholdGroupJoining,
-			std::shared_ptr<sat_capsule> capsule, const TaskProxy _task_proxy, bool forceAtLeastOneAction,
-    		utils::LogProxy _log);
+		std::shared_ptr<KautzSelmanRintanenEncodingFactory> _factory,
+		int _encoding,
+		int	_disablingThreshold,
+		bool _aboveThresholdGroupJoining,
+		std::shared_ptr<sat_capsule> capsule, const TaskProxy _task_proxy, bool forceAtLeastOneAction,
+    	utils::LogProxy _log);
 
 
 	void encode(int fromTime, int toTime) override;
@@ -188,6 +219,8 @@ public:
 	// functions for debugging
 	void assertLabelsAtTime(int fromTime, std::set<int> labels) override;
 };
+
+
 
 //extern void add_sat_search_options_to_feature(plugins::Feature &feature, const std::string &description);
 //extern std::tuple<OperatorCost, int, double, std::string, utils::Verbosity>
