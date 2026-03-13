@@ -5,6 +5,7 @@
 #include <vector>
 
 int clauseCount = 0;
+extern bool kissat_quietMode;
 
 
 #include <iostream>
@@ -16,7 +17,9 @@ std::vector<std::vector<int>> formula;
 std::vector<int> curclause;
 int maxVar = -1;
 
-//#undef NDEBUG
+#ifndef NDEBUG
+#define NDEBUG
+#endif
 
 extern "C" {
 
@@ -39,7 +42,10 @@ IPASIR_API const char * ipasir_signature (){
 IPASIR_API void * ipasir_init (){
 	formula.clear();
 	maxVar = -1;
-	return kissat_init();
+	kissat* solver = kissat_init();
+	if (kissat_quietMode)
+		kissat_set_option(solver, "quiet", 1);	
+	return solver;
 }
 
 /**
@@ -136,5 +142,9 @@ IPASIR_API int ipasir_solve (void * solver){
  */
 IPASIR_API int ipasir_val (void * solver, int lit){
 	return kissat_value((kissat*)solver,lit);
+}
+
+void ipasir_terminate (void * solver){
+	kissat_terminate((kissat*)solver);
 }
 }
