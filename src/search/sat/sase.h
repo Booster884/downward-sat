@@ -21,9 +21,28 @@ public:
 
 class SaseEncoding : public SATEncoding {
 public:
+    std::map<int, std::vector<std::vector<int>>> transition_vars;
+    std::map<int, std::vector<int>> operator_vars;
+    std::vector<std::map<int, std::pair<int, int>>> op_trs;
+
+    int get_transition_var(int time, int var_i, int from, int to);
+
+    void generate_transition_vars(int time);
+    void generate_operator_vars(int time);
+
+    void encode_progression(int time);
+    void encode_regression(int time);
+    void encode_tr_mutex(int time);
+    void encode_op_composition(int time);
+    void encode_op_exists(int time);
+    void encode_op_mutex(int time);
+
+public:
+    mutable utils::LogProxy log;
+
     SaseEncoding(
         std::shared_ptr<sat_capsule> capsule, const TaskProxy _task_proxy,
-        bool forceAtLeastOneAction);
+        bool forceAtLeastOneAction, utils::LogProxy _log);
 
     void encode(int fromTime, int toTime) override;
     void encodeInit(int fromTime, bool retractable) override;
