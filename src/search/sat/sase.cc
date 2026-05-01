@@ -13,21 +13,16 @@ namespace sat_search {
 std::unique_ptr<SATEncoding> SaseEncodingFactory::createEncodingInstance(
     std::shared_ptr<sat_capsule> capsule) {
     return std::make_unique<SaseEncoding>(
-        capsule, *task_proxy, forceAtLeastOneAction, *log);
+        this, capsule, *task_proxy, forceAtLeastOneAction, *log);
 }
 
 void SaseEncodingFactory::initialize(
     const TaskProxy _task_proxy, utils::LogProxy _log) {
     task_proxy = std::make_shared<TaskProxy>(_task_proxy);
     log = std::make_shared<utils::LogProxy>(_log);
-}
 
-SaseEncoding::SaseEncoding(
-    std::shared_ptr<sat_capsule> capsule, const TaskProxy _task_proxy,
-    bool forceAtLeastOneAction, utils::LogProxy _log)
-    : SATEncoding(capsule, _task_proxy, forceAtLeastOneAction), log(_log) {
-    auto ops = task_proxy.get_operators();
-    int n_vars = task_proxy.get_variables().size();
+    auto ops = task_proxy->get_operators();
+    int n_vars = task_proxy->get_variables().size();
 
     for (size_t op_i = 0; op_i < ops.size(); op_i++) {
         auto op = ops[op_i];
@@ -58,6 +53,15 @@ SaseEncoding::SaseEncoding(
         }
         op_trs.push_back(trs);
     }
+}
+
+SaseEncoding::SaseEncoding(
+    SaseEncodingFactory *_factory, std::shared_ptr<sat_capsule> capsule,
+    const TaskProxy _task_proxy, bool forceAtLeastOneAction,
+    utils::LogProxy _log)
+    : SATEncoding(capsule, _task_proxy, forceAtLeastOneAction),
+      log(_log),
+      factory(_factory) {
 }
 
 int SaseEncoding::get_transition_var(int time, int var_i, int from, int to) {
@@ -142,7 +146,7 @@ void SaseEncoding::encode_tr_mutex(int time) {
 void SaseEncoding::encode_op_composition(int time) {
     auto ops = task_proxy.get_operators();
     for (size_t op_i = 0; op_i < ops.size(); op_i++) {
-        auto trs = op_trs[op_i];
+        auto trs = factory->op_trs[op_i];
         std::vector<int> implied;
         for (auto const &[var_i, tr] : trs) {
             auto [from, to] = tr;
@@ -176,9 +180,9 @@ void SaseEncoding::encode_op_exists(int time) {
                     continue;
 
                 for (int op_i = 0; op_i < ops.size(); op_i++) {
-                    if (!op_trs[op_i].count(var_i))
+                    if (!factory->op_trs[op_i].count(var_i))
                         continue;
-                    auto [f_, g_] = op_trs[op_i][var_i];
+                    auto [f_, g_] = factory->op_trs[op_i][var_i];
                     if ((f_ == f || f_ == -1) && g_ == g) {
                         implied.push_back(operator_vars[time][op_i]);
                     }
@@ -304,5 +308,4 @@ std::tuple<State, std::vector<State>, Plan> SaseEncoding::extractSolution(
 // functions for debugging
 void SaseEncoding::assertLabelsAtTime(int fromTime, std::set<int> labels) {
 }
-
 }

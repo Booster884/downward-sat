@@ -10,6 +10,8 @@ namespace sat_search {
 
 class SaseEncodingFactory : public SATEncodingFactory {
 public:
+    std::vector<std::map<int, std::pair<int, int>>> op_trs;
+public:
     SaseEncodingFactory(bool forceAtLeastOneAction)
         : SATEncodingFactory(forceAtLeastOneAction) {};
 
@@ -23,7 +25,6 @@ class SaseEncoding : public SATEncoding {
 public:
     std::map<int, std::vector<std::vector<int>>> transition_vars;
     std::map<int, std::vector<int>> operator_vars;
-    std::vector<std::map<int, std::pair<int, int>>> op_trs;
 
     int get_transition_var(int time, int var_i, int from, int to);
 
@@ -39,10 +40,12 @@ public:
 
 public:
     mutable utils::LogProxy log;
+    SaseEncodingFactory *factory;
 
     SaseEncoding(
-        std::shared_ptr<sat_capsule> capsule, const TaskProxy _task_proxy,
-        bool forceAtLeastOneAction, utils::LogProxy _log);
+        SaseEncodingFactory *_factory, std::shared_ptr<sat_capsule> capsule,
+        const TaskProxy _task_proxy, bool forceAtLeastOneAction,
+        utils::LogProxy _log);
 
     void encode(int fromTime, int toTime) override;
     void encodeInit(int fromTime, bool retractable) override;
