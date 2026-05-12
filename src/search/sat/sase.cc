@@ -187,19 +187,37 @@ void SaseEncoding::encode_op_exists(int time) {
                         implied.push_back(operator_vars[time][op_i]);
                     }
                 }
-                if (!implied.empty()) {
-                    sat->impliesOr(
-                        get_transition_var(time, var_i, f, g), implied);
-                } else {
-                    sat->assertNot(get_transition_var(time, var_i, f, g));
-                }
+                sat->impliesOr(get_transition_var(time, var_i, f, g), implied);
             }
         }
     }
 }
 
+// Actions that share prevailing transitions are mutually exclusive.
 void SaseEncoding::encode_op_mutex(int time) {
-    // TODO
+    auto ops = task_proxy.get_operators();
+    auto n_vars = task_proxy.get_variables().size();
+    for (size_t opa_i = 0; opa_i < ops.size(); opa_i++) {
+        for (size_t opb_i = opa_i + 1; opb_i < ops.size(); opb_i++) {
+            bool mutex = false;
+            for (size_t var_i = 0; var_i < n_vars; var_i++) {
+                if (factory->op_trs[opa_i].contains(var_i) &&
+                    factory->op_trs[opb_i].contains(var_i)) {
+                    auto [a_from, a_to] = factory->op_trs[opa_i][var_i];
+                    auto [b_from, b_to] = factory->op_trs[opb_i][var_i];
+                    if ((a_from == b_from || a_from == -1 || b_from == -1) &&
+                        a_to == b_to && a_from != a_to) {
+                            mutex = true;
+                            break;
+                    }
+                }
+            }
+            if (mutex) {
+                sat->impliesNot(
+                    operator_vars[time][opa_i], operator_vars[time][opb_i]);
+            }
+        }
+    }
 }
 
 void SaseEncoding::encode(int fromTime, int toTime) {
